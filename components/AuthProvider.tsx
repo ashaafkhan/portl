@@ -47,12 +47,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2. Listen for auth changes (login/logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'TOKEN_REFRESHED') {
+          // Just update session, don't refetch role to prevent infinite loops
+          setSession(session);
+          setUser(session?.user ?? null);
+          return;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
+        if (event === 'SIGNED_IN' && session?.user) {
           await fetchRole(session.user.id);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
           setRole(null);
           setIsLoading(false);
         }
@@ -93,8 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!session) {
       // Not logged in
-      if (!inAuthGroup && !inPlayground && segments[0] !== undefined) {
-        // Redirect to login if trying to access protected routes
+      if (!inAuthGroup && !inPlayground) {
+        // Redirect to login if trying to access protected routes or root
         router.replace("/(auth)");
       }
     } else if (session && role) {

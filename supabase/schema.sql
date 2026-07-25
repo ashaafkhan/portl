@@ -39,6 +39,45 @@ CREATE TABLE profiles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 4.5. Invites (Pre-created by Admin before user signs up)
+CREATE TABLE invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  society_id UUID REFERENCES societies(id) ON DELETE CASCADE,
+  role user_role NOT NULL,
+  full_name TEXT NOT NULL,
+  phone TEXT UNIQUE NOT NULL,
+  flat_id UUID REFERENCES flats(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Function to handle new auth users and claim their invite
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  invite_record RECORD;
+BEGIN
+  -- Look for an invite matching the phone number
+  SELECT * INTO invite_record FROM public.invites WHERE phone = NEW.phone LIMIT 1;
+  
+  IF FOUND THEN
+    -- Insert into profiles using the auth.users.id
+    INSERT INTO public.profiles (id, society_id, role, full_name, phone, flat_id)
+    VALUES (NEW.id, invite_record.society_id, invite_record.role, invite_record.full_name, invite_record.phone, invite_record.flat_id);
+    
+    -- Delete the invite now that it's claimed
+    DELETE FROM public.invites WHERE id = invite_record.id;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger on auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- 5. Visitors (Master record of a person)
 CREATE TABLE visitors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -192,6 +231,7 @@ ALTER TABLE societies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE towers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE flats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE visitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE visitor_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE guest_preapprovals ENABLE ROW LEVEL SECURITY;
@@ -225,6 +265,10 @@ CREATE POLICY "Users can view profiles in their society" ON profiles FOR SELECT
   USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE
   USING (id = auth.uid());
+
+-- Invites: Admins can manage, Guards can't, Residents can't.
+CREATE POLICY "Admins can manage invites" ON invites FOR ALL
+  USING ((public.user_profile()).role = 'admin');
 
 -- Visitor Requests
 CREATE POLICY "Guards and Admins can view all requests in society" ON visitor_requests FOR SELECT

@@ -18,13 +18,12 @@ INSERT INTO flats (id, tower_id, number) VALUES
 ('f0000000-0000-0000-0000-000000000005', 'f8fbd8b0-bfb0-4617-bb91-c1bc6df0ff4f', '102'),
 ('f0000000-0000-0000-0000-000000000006', 'f8fbd8b0-bfb0-4617-bb91-c1bc6df0ff4f', '103');
 
--- 4. Create Profiles
--- Note: In a real app, these IDs would match auth.users.id created via Supabase Auth
-INSERT INTO profiles (id, society_id, role, full_name, phone, flat_id) VALUES 
-('a0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'admin', 'Society Admin', '+919999999999', NULL),
-('b0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'guard', 'Security Guard (Gate 1)', '+918888888888', NULL),
-('c0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Rahul Sharma', '+917777777777', 'f0000000-0000-0000-0000-000000000002'),
-('c0000000-0000-0000-0000-000000000002', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Priya Patel', '+916666666666', 'f0000000-0000-0000-0000-000000000004');
+-- 4. Create Invites (These will automatically convert to profiles when they log in)
+INSERT INTO invites (society_id, role, full_name, phone, flat_id) VALUES 
+('b861cdb6-681a-45c1-90a6-805f8892f3cb', 'admin', 'Society Admin', '+919999999999', NULL),
+('b861cdb6-681a-45c1-90a6-805f8892f3cb', 'guard', 'Security Guard (Gate 1)', '+918888888888', NULL),
+('b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Rahul Sharma', '+917777777777', 'f0000000-0000-0000-0000-000000000002'),
+('b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Priya Patel', '+916666666666', 'f0000000-0000-0000-0000-000000000004');
 
 -- 5. Create Amenities
 INSERT INTO amenities (id, society_id, name, description, capacity, open_time, close_time) VALUES
@@ -40,5 +39,5 @@ INSERT INTO notices (society_id, title, body, pinned, created_by) VALUES
 INSERT INTO visitors (id, name, category, phone) VALUES 
 ('e0000000-0000-0000-0000-000000000001', 'Amazon Delivery', 'delivery', '+915555555555');
 
-INSERT INTO visitor_requests (visitor_id, flat_id, created_by, status) VALUES
-('e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'pending');
+-- Wait to insert visitor_requests until the users actually exist in profiles (after login)
+-- We will dynamically create requests later in the UI!

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Shield, List, User } from "lucide-react-native";
+import { Shield, List, User, FileText } from "lucide-react-native";
 import { Platform } from "react-native";
 
 export default function GuardLayout() {
@@ -38,6 +38,13 @@ export default function GuardLayout() {
         options={{
           title: "Requests",
           tabBarIcon: ({ color, size }) => <List color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="logs"
+        options={{
+          title: "Logs",
+          tabBarIcon: ({ color, size }) => <FileText color={color} size={size} />,
         }}
       />
       <Tabs.Screen

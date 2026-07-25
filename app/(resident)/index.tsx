@@ -61,6 +61,19 @@ export default function ResidentIndex() {
 
       if (error) throw error;
       
+      // Auto-create entry log for approved visitors
+      if (newStatus === 'approved') {
+        const { error: logError } = await supabase
+          .from('entry_exit_logs')
+          .insert({
+            ref_type: 'request',
+            ref_id: requestId,
+            // guard_id is null since it's auto-logged via resident approval
+          });
+          
+        if (logError) console.error("Error creating entry log:", logError);
+      }
+      
       // Update local state instantly for snappy UI
       setRequests(requests.filter(r => r.id !== requestId));
     } catch (error: any) {

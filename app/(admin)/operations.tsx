@@ -1,26 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, UserPlus, ShieldAlert, CheckCircle } from 'lucide-react-native';
+import { Briefcase, UserPlus, ShieldAlert, CheckCircle, ClipboardList } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuth } from '../../components/AuthProvider';
 
 export default function OperationsScreen() {
   const { session } = useAuth();
-  const [activeTab, setActiveTab] = useState<'complaints' | 'guards'>('complaints');
+  const [activeTab, setActiveTab] = useState<'complaints' | 'guards' | 'logs'>('complaints');
   
   // Guard Invite States
   const [guardName, setGuardName] = useState('');
   const [guardPhone, setGuardPhone] = useState('+91');
 
-  // Complaints States
+  // Data States
   const [complaints, setComplaints] = useState<any[]>([]);
+  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (activeTab === 'complaints') {
       fetchComplaints();
+    } else if (activeTab === 'logs') {
+      fetchLogs();
     }
   }, [activeTab]);
 
@@ -32,10 +35,7 @@ export default function OperationsScreen() {
       if (profile?.society_id) {
         const { data, error } = await supabase
           .from('complaints')
-          .select(`
-            id, title, description, status, created_at, category,
-            profiles:resident_id (full_name, flats(number, towers(name)))
-          `)
+          .select(`id, title, description, status, created_at, category, profiles:resident_id (full_name, flats(number, towers(name)))`)
           .eq('society_id', profile.society_id)
           .order('created_at', { ascending: false });
           
@@ -49,15 +49,52 @@ export default function OperationsScreen() {
     }
   };
 
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const { data: logsData, error: logsError } = await supabase
+        .from('entry_exit_logs')
+        .select('*')
+        .order('entry_time', { ascending: false })
+        .limit(100);
+
+      if (logsError) throw logsError;
+
+      if (!logsData || logsData.length === 0) {
+        setHistoryLogs([]);
+        return;
+      }
+
+      const requestIds = logsData.filter(l => l.ref_type === 'request').map(l => l.ref_id);
+      if (requestIds.length > 0) {
+        const { data: requestsData, error: reqError } = await supabase
+          .from('visitor_requests')
+          .select(`id, visitors(name, category, phone), flats(number, towers(name))`)
+          .in('id', requestIds);
+        
+        if (reqError) throw reqError;
+
+        const merged = logsData.map(log => {
+          if (log.ref_type === 'request') {
+             return { ...log, request: requestsData.find(r => r.id === log.ref_id) };
+          }
+          return log;
+        });
+        setHistoryLogs(merged);
+      } else {
+        setHistoryLogs(logsData);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResolveComplaint = async (complaintId: string) => {
     try {
-      const { error } = await supabase
-        .from('complaints')
-        .update({ status: 'resolved' })
-        .eq('id', complaintId);
-
+      const { error } = await supabase.from('complaints').update({ status: 'resolved' }).eq('id', complaintId);
       if (error) throw error;
-      
       setComplaints(complaints.map(c => c.id === complaintId ? { ...c, status: 'resolved' } : c));
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -68,18 +105,10 @@ export default function OperationsScreen() {
     if (!guardName || guardPhone.length < 10) return Alert.alert('Error', 'Valid name and phone required');
     try {
       const { data: profile } = await supabase.from('profiles').select('society_id').eq('id', session?.user.id).single();
-      
-      const { error } = await supabase.from('invites').insert({
-        society_id: profile?.society_id,
-        role: 'guard',
-        full_name: guardName,
-        phone: guardPhone,
-      });
+      const { error } = await supabase.from('invites').insert({ society_id: profile?.society_id, role: 'guard', full_name: guardName, phone: guardPhone });
       if (error) throw error;
-      
-      Alert.alert('Success', 'Guard invited! They can now log in.');
-      setGuardName('');
-      setGuardPhone('+91');
+      Alert.alert('Success', 'Guard invited!');
+      setGuardName(''); setGuardPhone('+91');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -95,22 +124,14 @@ export default function OperationsScreen() {
           </Text>
         </View>
         <View className={`px-3 py-1 rounded-full ${item.status === 'resolved' ? 'bg-emerald-100' : 'bg-amber-100'}`}>
-          <Text className={`text-xs font-bold uppercase tracking-wider ${item.status === 'resolved' ? 'text-emerald-700' : 'text-amber-700'}`}>
-            {item.status}
-          </Text>
+          <Text className={`text-xs font-bold uppercase tracking-wider ${item.status === 'resolved' ? 'text-emerald-700' : 'text-amber-700'}`}>{item.status}</Text>
         </View>
       </View>
       <Text className="text-neutral-600 my-3">{item.description}</Text>
-      
       <View className="flex-row justify-between items-center mt-2 pt-4 border-t border-neutral-100">
-        <Text className="text-neutral-400 text-xs">
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
+        <Text className="text-neutral-400 text-xs">{new Date(item.created_at).toLocaleDateString()}</Text>
         {item.status === 'open' && (
-          <TouchableOpacity 
-            onPress={() => handleResolveComplaint(item.id)}
-            className="bg-emerald-50 px-4 py-2 rounded-lg flex-row items-center gap-1"
-          >
+          <TouchableOpacity onPress={() => handleResolveComplaint(item.id)} className="bg-emerald-50 px-4 py-2 rounded-lg flex-row items-center gap-1">
             <CheckCircle color="#10B981" size={16} />
             <Text className="text-emerald-600 font-bold">Mark Resolved</Text>
           </TouchableOpacity>
@@ -119,6 +140,40 @@ export default function OperationsScreen() {
     </View>
   );
 
+  const renderLog = ({ item }: { item: any }) => {
+    if (!item.request) return null;
+    const { name, category } = item.request.visitors || {};
+    const flatStr = item.request.flats ? `${item.request.flats.towers?.name} - ${item.request.flats.number}` : 'Unknown Flat';
+
+    return (
+      <View className="bg-white p-5 rounded-2xl border border-neutral-200 mb-4 shadow-sm">
+        <View className="flex-row justify-between items-start mb-2">
+          <View className="flex-1">
+            <Text className="text-lg font-bold text-neutral-900">{name}</Text>
+            <Text className="text-neutral-500 font-semibold">{flatStr}</Text>
+          </View>
+          <View className="bg-neutral-100 px-3 py-1 rounded-full">
+            <Text className="text-neutral-600 text-xs font-bold uppercase tracking-wider">{category}</Text>
+          </View>
+        </View>
+        <View className="mt-2 flex-row gap-4">
+          <View>
+            <Text className="text-neutral-400 text-xs uppercase tracking-wider font-bold mb-1">Entry</Text>
+            <Text className="text-neutral-700 font-medium">{new Date(item.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+          </View>
+          <View>
+            <Text className="text-neutral-400 text-xs uppercase tracking-wider font-bold mb-1">Exit</Text>
+            <Text className="text-neutral-700 font-medium">{item.exit_time ? new Date(item.exit_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Inside'}</Text>
+          </View>
+          <View>
+            <Text className="text-neutral-400 text-xs uppercase tracking-wider font-bold mb-1">Date</Text>
+            <Text className="text-neutral-700 font-medium">{new Date(item.entry_time).toLocaleDateString()}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-neutral-50" edges={['top']}>
       <View className="px-6 py-4 bg-white border-b border-neutral-200">
@@ -126,18 +181,17 @@ export default function OperationsScreen() {
       </View>
 
       <View className="flex-row p-4 gap-2">
-        <TouchableOpacity 
-          onPress={() => setActiveTab('complaints')}
-          className={`px-4 py-2 rounded-full ${activeTab === 'complaints' ? 'bg-indigo-600' : 'bg-neutral-200'}`}
-        >
-          <Text className={`font-semibold ${activeTab === 'complaints' ? 'text-white' : 'text-neutral-600'}`}>Complaints</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setActiveTab('guards')}
-          className={`px-4 py-2 rounded-full ${activeTab === 'guards' ? 'bg-indigo-600' : 'bg-neutral-200'}`}
-        >
-          <Text className={`font-semibold ${activeTab === 'guards' ? 'text-white' : 'text-neutral-600'}`}>Security Staff</Text>
-        </TouchableOpacity>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <TouchableOpacity onPress={() => setActiveTab('complaints')} className={`px-4 py-2 rounded-full mr-2 ${activeTab === 'complaints' ? 'bg-indigo-600' : 'bg-neutral-200'}`}>
+            <Text className={`font-semibold ${activeTab === 'complaints' ? 'text-white' : 'text-neutral-600'}`}>Complaints</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setActiveTab('logs')} className={`px-4 py-2 rounded-full mr-2 ${activeTab === 'logs' ? 'bg-indigo-600' : 'bg-neutral-200'}`}>
+            <Text className={`font-semibold ${activeTab === 'logs' ? 'text-white' : 'text-neutral-600'}`}>Logs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setActiveTab('guards')} className={`px-4 py-2 rounded-full mr-2 ${activeTab === 'guards' ? 'bg-indigo-600' : 'bg-neutral-200'}`}>
+            <Text className={`font-semibold ${activeTab === 'guards' ? 'text-white' : 'text-neutral-600'}`}>Security Staff</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       {activeTab === 'guards' ? (
@@ -147,19 +201,8 @@ export default function OperationsScreen() {
               <UserPlus color="#4F46E5" size={24} />
               <Text className="text-xl font-bold">Invite Security Guard</Text>
             </View>
-            <TextInput
-              placeholder="Guard Full Name"
-              value={guardName}
-              onChangeText={setGuardName}
-              className="bg-neutral-100 p-4 rounded-xl mb-4 text-lg"
-            />
-            <TextInput
-              placeholder="Phone Number (+91...)"
-              value={guardPhone}
-              onChangeText={setGuardPhone}
-              keyboardType="phone-pad"
-              className="bg-neutral-100 p-4 rounded-xl mb-6 text-lg"
-            />
+            <TextInput placeholder="Guard Full Name" value={guardName} onChangeText={setGuardName} className="bg-neutral-100 p-4 rounded-xl mb-4 text-lg" />
+            <TextInput placeholder="Phone Number (+91...)" value={guardPhone} onChangeText={setGuardPhone} keyboardType="phone-pad" className="bg-neutral-100 p-4 rounded-xl mb-6 text-lg" />
             <TouchableOpacity onPress={handleInviteGuard} className="bg-indigo-600 p-4 rounded-xl flex-row justify-center items-center gap-2">
               <UserPlus color="white" size={20} />
               <Text className="text-white font-bold text-lg">Send Guard Invite</Text>
@@ -170,19 +213,18 @@ export default function OperationsScreen() {
         <View className="flex-1 px-6 pt-4">
           {loading ? (
             <ActivityIndicator size="large" color="#4F46E5" />
-          ) : complaints.length === 0 ? (
-            <EmptyState 
-              icon={ShieldAlert}
-              title="No Complaints"
-              description="No resident complaints have been logged."
-            />
+          ) : activeTab === 'complaints' ? (
+            complaints.length === 0 ? (
+              <EmptyState icon={ShieldAlert} title="No Complaints" description="No resident complaints have been logged." />
+            ) : (
+              <FlatList data={complaints} keyExtractor={item => item.id} renderItem={renderComplaint} showsVerticalScrollIndicator={false} />
+            )
           ) : (
-            <FlatList
-              data={complaints}
-              keyExtractor={item => item.id}
-              renderItem={renderComplaint}
-              showsVerticalScrollIndicator={false}
-            />
+            historyLogs.length === 0 ? (
+              <EmptyState icon={ClipboardList} title="No Logs" description="No visitors have entered the society." />
+            ) : (
+              <FlatList data={historyLogs} keyExtractor={item => item.id} renderItem={renderLog} showsVerticalScrollIndicator={false} />
+            )
           )}
         </View>
       )}

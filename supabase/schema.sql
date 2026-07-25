@@ -135,13 +135,16 @@ CREATE TYPE complaint_status AS ENUM ('open', 'in_progress', 'resolved', 'closed
 
 CREATE TABLE complaints (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  society_id UUID REFERENCES societies(id) ON DELETE CASCADE,
   flat_id UUID REFERENCES flats(id) ON DELETE CASCADE,
   resident_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   category TEXT NOT NULL,
+  title TEXT NOT NULL,
   description TEXT NOT NULL,
   photo_url TEXT,
   status complaint_status DEFAULT 'open',
-  assigned_to UUID REFERENCES profiles(id), -- Admin assigned
+  admin_note TEXT,
+  assigned_to UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

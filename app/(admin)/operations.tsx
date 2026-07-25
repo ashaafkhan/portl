@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Briefcase, UserPlus, ShieldAlert, CheckCircle, ClipboardList } from 'lucide-react-native';
+import { Briefcase, UserPlus, ShieldAlert, CheckCircle, ClipboardList, X } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuth } from '../../components/AuthProvider';
@@ -19,6 +19,12 @@ export default function OperationsScreen() {
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Resolution Modal State
+  const [resolveModalVisible, setResolveModalVisible] = useState(false);
+  const [resolvingComplaintId, setResolvingComplaintId] = useState<string | null>(null);
+  const [resolutionNote, setResolutionNote] = useState('');
+  const [resolving, setResolving] = useState(false);
+
   useEffect(() => {
     if (activeTab === 'complaints') {
       fetchComplaints();
@@ -35,7 +41,7 @@ export default function OperationsScreen() {
       if (profile?.society_id) {
         const { data, error } = await supabase
           .from('complaints')
-          .select(`id, title, description, status, created_at, category, profiles:resident_id (full_name, flats(number, towers(name)))`)
+          .select(`id, title, description, status, created_at, category, admin_note, profiles:resident_id (full_name, flats(number, towers(name)))`)
           .eq('society_id', profile.society_id)
           .order('created_at', { ascending: false });
           
@@ -91,13 +97,40 @@ export default function OperationsScreen() {
     }
   };
 
-  const handleResolveComplaint = async (complaintId: string) => {
+  const openResolveModal = (id: string) => {
+    setResolvingComplaintId(id);
+    setResolutionNote('');
+    setResolveModalVisible(true);
+  };
+
+  const handleResolveComplaint = async () => {
+    if (!resolvingComplaintId) return;
+    setResolving(true);
     try {
-      const { error } = await supabase.from('complaints').update({ status: 'resolved' }).eq('id', complaintId);
-      if (error) throw error;
-      setComplaints(complaints.map(c => c.id === complaintId ? { ...c, status: 'resolved' } : c));
+      const { error } = await supabase
+        .from('complaints')
+        .update({ status: 'resolved', admin_note: resolutionNote || null })
+        .eq('id', resolvingComplaintId);
+        
+      if (error) {
+        if (error.code === 'PGRST204') { // Column not found error (if DB wasn't updated)
+          Alert.alert('Database Update Required', 'Please run the SQL command to add admin_note column first!');
+          setResolveModalVisible(false);
+          return;
+        }
+        throw error;
+      }
+      
+      setComplaints(complaints.map(c => 
+        c.id === resolvingComplaintId 
+          ? { ...c, status: 'resolved', admin_note: resolutionNote || null } 
+          : c
+      ));
+      setResolveModalVisible(false);
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -128,10 +161,18 @@ export default function OperationsScreen() {
         </View>
       </View>
       <Text className="text-neutral-600 my-3">{item.description}</Text>
+      
+      {item.admin_note && (
+        <View className="mb-3 bg-neutral-50 p-3 rounded-lg border border-neutral-100">
+          <Text className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">Resolution Note</Text>
+          <Text className="text-neutral-700">{item.admin_note}</Text>
+        </View>
+      )}
+
       <View className="flex-row justify-between items-center mt-2 pt-4 border-t border-neutral-100">
         <Text className="text-neutral-400 text-xs">{new Date(item.created_at).toLocaleDateString()}</Text>
         {item.status === 'open' && (
-          <TouchableOpacity onPress={() => handleResolveComplaint(item.id)} className="bg-emerald-50 px-4 py-2 rounded-lg flex-row items-center gap-1">
+          <TouchableOpacity onPress={() => openResolveModal(item.id)} className="bg-emerald-50 px-4 py-2 rounded-lg flex-row items-center gap-1">
             <CheckCircle color="#10B981" size={16} />
             <Text className="text-emerald-600 font-bold">Mark Resolved</Text>
           </TouchableOpacity>
@@ -228,6 +269,46 @@ export default function OperationsScreen() {
           )}
         </View>
       )}
+
+      {/* Resolution Note Modal */}
+      <Modal visible={resolveModalVisible} animationType="slide" transparent={true}>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6 pb-12">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-2xl font-bold text-neutral-900">Resolve Complaint</Text>
+              <TouchableOpacity onPress={() => setResolveModalVisible(false)} className="bg-neutral-100 p-2 rounded-full">
+                <X color="#6B7280" size={20} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text className="text-neutral-600 mb-2">Add a note so the resident knows what action was taken (optional):</Text>
+            <TextInput
+              placeholder="e.g. Plumber visited and fixed the leak."
+              value={resolutionNote}
+              onChangeText={setResolutionNote}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              className="bg-neutral-100 p-4 rounded-xl mb-6 text-lg min-h-[100px]"
+            />
+            
+            <TouchableOpacity 
+              onPress={handleResolveComplaint}
+              disabled={resolving}
+              className={`p-4 rounded-xl flex-row justify-center items-center gap-2 ${resolving ? 'bg-emerald-400' : 'bg-emerald-600'}`}
+            >
+              {resolving ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <CheckCircle color="white" size={20} />
+                  <Text className="text-white font-bold text-lg">Mark as Resolved</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

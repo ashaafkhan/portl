@@ -224,6 +224,15 @@ CREATE TABLE staff_directory (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE trusted_staff (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  flat_id UUID REFERENCES flats(id) ON DELETE CASCADE,
+  resident_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  staff_id UUID REFERENCES staff_directory(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(flat_id, staff_id)
+);
+
 
 -- =================================================================================
 -- ROW LEVEL SECURITY (RLS)
@@ -247,6 +256,7 @@ ALTER TABLE poll_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE amenities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE amenity_bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE staff_directory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trusted_staff ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to get current user's profile
 CREATE OR REPLACE FUNCTION public.user_profile() RETURNS profiles AS $$
@@ -335,6 +345,12 @@ CREATE POLICY "Everyone can view staff directory" ON staff_directory FOR SELECT
   USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Admins can manage staff directory" ON staff_directory FOR ALL
   USING ((public.user_profile()).role = 'admin');
+
+-- Trusted Staff
+CREATE POLICY "Residents can manage trusted staff for their flat" ON trusted_staff FOR ALL
+  USING (resident_id = auth.uid());
+CREATE POLICY "Guards and Admins can view trusted staff" ON trusted_staff FOR SELECT
+  USING ((public.user_profile()).role IN ('guard', 'admin'));
 
 
 -- =================================================================================

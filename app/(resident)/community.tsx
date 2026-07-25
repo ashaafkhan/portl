@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Building2, MessageSquareWarning, Megaphone, Send, ShieldAlert, CheckCircle, PieChart, Dumbbell, CalendarPlus, X, Clock } from 'lucide-react-native';
+import { Building2, MessageSquareWarning, Megaphone, Send, ShieldAlert, CheckCircle, PieChart, Dumbbell, CalendarPlus, X, Clock, Users, Shield, ShieldCheck } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuth } from '../../components/AuthProvider';
 
 export default function CommunityScreen() {
   const { session } = useAuth();
-  const [activeTab, setActiveTab] = useState<'notices' | 'complaints' | 'polls' | 'amenities'>('notices');
+  const [activeTab, setActiveTab] = useState<'notices' | 'complaints' | 'polls' | 'amenities' | 'directory'>('notices');
   
   // Data States
   const [notices, setNotices] = useState<any[]>([]);
@@ -16,6 +16,7 @@ export default function CommunityScreen() {
   const [polls, setPolls] = useState<any[]>([]);
   const [amenities, setAmenities] = useState<any[]>([]);
   const [myBookings, setMyBookings] = useState<any[]>([]);
+  const [directory, setDirectory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Complaint Form
@@ -63,11 +64,42 @@ export default function CommunityScreen() {
           .gte('date', new Date().toISOString().split('T')[0])
           .order('date', { ascending: true });
         setMyBookings(bookings || []);
+      } else if (activeTab === 'directory') {
+        const { data: staffData } = await supabase.from('staff_directory').select('*').eq('society_id', profile.society_id).order('category', { ascending: true });
+        const { data: trustedData } = await supabase.from('trusted_staff').select('staff_id').eq('resident_id', session?.user.id);
+        
+        const trustedIds = new Set((trustedData || []).map(t => t.staff_id));
+        const enhancedStaff = (staffData || []).map(staff => ({
+          ...staff,
+          isTrusted: trustedIds.has(staff.id)
+        }));
+        
+        setDirectory(enhancedStaff);
       }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleTrust = async (staffId: string, currentlyTrusted: boolean) => {
+    try {
+      const { data: profile } = await supabase.from('profiles').select('flat_id').eq('id', session?.user.id).single();
+      
+      if (currentlyTrusted) {
+        await supabase.from('trusted_staff').delete().match({ resident_id: session?.user.id, staff_id: staffId });
+      } else {
+        await supabase.from('trusted_staff').insert({
+          flat_id: profile?.flat_id,
+          resident_id: session?.user.id,
+          staff_id: staffId
+        });
+      }
+      
+      setDirectory(directory.map(s => s.id === staffId ? { ...s, isTrusted: !currentlyTrusted } : s));
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
     }
   };
 
@@ -238,6 +270,44 @@ export default function CommunityScreen() {
     </View>
   );
 
+  const renderDirectory = ({ item }: { item: any }) => (
+    <View className="bg-white p-5 rounded-2xl border border-neutral-200 mb-4 shadow-sm">
+      <View className="flex-row justify-between items-start mb-3">
+        <View className="flex-1">
+          <Text className="text-xl font-bold text-neutral-900 flex-row items-center gap-1">
+            {item.name} {item.verified && <CheckCircle color="#10B981" size={16} />}
+          </Text>
+          <Text className="text-neutral-500 font-semibold">{item.category}</Text>
+        </View>
+        <View className="bg-neutral-100 px-3 py-1 rounded-full">
+          <Text className="text-neutral-700 font-medium">{item.phone}</Text>
+        </View>
+      </View>
+      
+      <TouchableOpacity 
+        onPress={() => handleToggleTrust(item.id, item.isTrusted)}
+        className={`mt-2 py-3 rounded-xl flex-row justify-center items-center gap-2 border ${item.isTrusted ? 'border-emerald-200 bg-emerald-50' : 'border-neutral-200 bg-white'}`}
+      >
+        {item.isTrusted ? (
+          <>
+            <ShieldCheck color="#10B981" size={20} />
+            <Text className="text-emerald-700 font-bold text-base">Personally Trusted</Text>
+          </>
+        ) : (
+          <>
+            <Shield color="#6B7280" size={20} />
+            <Text className="text-neutral-600 font-bold text-base">Mark as Trusted</Text>
+          </>
+        )}
+      </TouchableOpacity>
+      {item.isTrusted && (
+        <Text className="text-center text-xs text-emerald-600 mt-2">
+          This person will be auto-approved when they visit your flat.
+        </Text>
+      )}
+    </View>
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-neutral-50" edges={['top']}>
       <View className="px-6 py-4 bg-white border-b border-neutral-200 flex-row justify-between items-center">
@@ -251,7 +321,7 @@ export default function CommunityScreen() {
 
       <View className="flex-row p-4 gap-2">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(['notices', 'complaints', 'polls', 'amenities'] as const).map((tab) => (
+          {(['notices', 'complaints', 'polls', 'amenities', 'directory'] as const).map((tab) => (
             <TouchableOpacity key={tab} onPress={() => { setActiveTab(tab); setIsCreatingComplaint(false); }} className={`px-4 py-2 rounded-full mr-2 ${activeTab === tab ? 'bg-[#FF7A59]' : 'bg-neutral-200'}`}>
               <Text className={`font-semibold capitalize ${activeTab === tab ? 'text-white' : 'text-neutral-600'}`}>{tab}</Text>
             </TouchableOpacity>
@@ -289,11 +359,13 @@ export default function CommunityScreen() {
           <EmptyState icon={PieChart} title="No Polls" description="No active polls right now." />
         ) : activeTab === 'amenities' && amenities.length === 0 ? (
           <EmptyState icon={Dumbbell} title="No Amenities" description="No amenities added yet." />
+        ) : activeTab === 'directory' && directory.length === 0 ? (
+          <EmptyState icon={Users} title="Empty Directory" description="No service staff added by admin." />
         ) : (
           <FlatList
-            data={activeTab === 'notices' ? notices : activeTab === 'complaints' ? complaints : activeTab === 'polls' ? polls : amenities}
+            data={activeTab === 'notices' ? notices : activeTab === 'complaints' ? complaints : activeTab === 'polls' ? polls : activeTab === 'amenities' ? amenities : directory}
             keyExtractor={item => item.id}
-            renderItem={activeTab === 'notices' ? renderNotice : activeTab === 'complaints' ? renderComplaint : activeTab === 'polls' ? renderPoll : renderAmenity}
+            renderItem={activeTab === 'notices' ? renderNotice : activeTab === 'complaints' ? renderComplaint : activeTab === 'polls' ? renderPoll : activeTab === 'amenities' ? renderAmenity : renderDirectory}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={activeTab === 'amenities' && myBookings.length > 0 ? (
               <View className="mb-6">

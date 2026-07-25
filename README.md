@@ -11,7 +11,7 @@
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-  ### 🎥 [Watch the 60-Second Demo Video on YouTube!](https://youtube.com/shorts/SnUTamrEA0o?is=OwEFym2d6tW9Dh36)
+  ### 🎥 [Watch the 15-Second Demo Video on YouTube!](https://youtube.com/shorts/SnUTamrEA0o?is=OwEFym2d6tW9Dh36)
 
 </div>
 
@@ -293,6 +293,5 @@ This project is licensed under the MIT License. You are free to use, modify, and
 
 ---
 <div align="center">
-  <b>Built meticulously for the Agentic Coding Challenge.</b><br>
   <i>"Don't build apps. Build ecosystems."</i>
 </div>

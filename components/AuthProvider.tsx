@@ -47,8 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2. Listen for auth changes (login/logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'TOKEN_REFRESHED') {
-          // Just update session, don't refetch role to prevent infinite loops
+        // Prevent infinite loops from token refresh failures or future JWTs
+        if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') {
           setSession(session);
           setUser(session?.user ?? null);
           return;

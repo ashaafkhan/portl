@@ -1,15 +1,15 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Home } from 'lucide-react-native';
+import { Building } from 'lucide-react-native';
 import { EmptyState } from '../../components/ui/EmptyState';
 
-export default function ResidentIndex() {
+export default function SocietyScreen() {
   return (
     <View className="flex-1 bg-white">
       <EmptyState 
-        icon={Home}
-        title="Your Feed is Empty"
-        description="No new visitor requests or alerts today."
+        icon={Building}
+        title="Society Management"
+        description="Manage towers, flats, and residents here."
       />
     </View>
   );

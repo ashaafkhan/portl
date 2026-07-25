@@ -1,15 +1,15 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Home } from 'lucide-react-native';
+import { List } from 'lucide-react-native';
 import { EmptyState } from '../../components/ui/EmptyState';
 
-export default function ResidentIndex() {
+export default function RequestsScreen() {
   return (
     <View className="flex-1 bg-white">
       <EmptyState 
-        icon={Home}
-        title="Your Feed is Empty"
-        description="No new visitor requests or alerts today."
+        icon={List}
+        title="No Pending Requests"
+        description="All visitor requests have been resolved."
       />
     </View>
   );

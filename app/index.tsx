@@ -24,6 +24,9 @@ export default function Index() {
           <Link href="/(admin)" className="bg-gray-800 text-white p-4 rounded-xl text-center font-bold">
             Go to Admin
           </Link>
+          <Link href="/playground" className="bg-neutral-100 text-neutral-800 p-4 rounded-xl text-center font-bold mt-4 border border-neutral-200">
+            View Component Playground
+          </Link>
         </View>
       </View>
     </SafeAreaView>

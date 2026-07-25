@@ -11,6 +11,9 @@ module.exports = {
         accent: {
           DEFAULT: "#FF7A59",
         }
+      },
+      fontFamily: {
+        sans: ["Inter_400Regular"],
       }
     },
   },

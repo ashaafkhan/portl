@@ -22,14 +22,14 @@ INSERT INTO flats (id, tower_id, number) VALUES
 -- Note: In a real app, these IDs would match auth.users.id created via Supabase Auth
 INSERT INTO profiles (id, society_id, role, full_name, phone, flat_id) VALUES 
 ('a0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'admin', 'Society Admin', '+919999999999', NULL),
-('g0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'guard', 'Security Guard (Gate 1)', '+918888888888', NULL),
-('r0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Rahul Sharma', '+917777777777', 'f0000000-0000-0000-0000-000000000002'),
-('r0000000-0000-0000-0000-000000000002', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Priya Patel', '+916666666666', 'f0000000-0000-0000-0000-000000000004');
+('b0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'guard', 'Security Guard (Gate 1)', '+918888888888', NULL),
+('c0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Rahul Sharma', '+917777777777', 'f0000000-0000-0000-0000-000000000002'),
+('c0000000-0000-0000-0000-000000000002', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'resident', 'Priya Patel', '+916666666666', 'f0000000-0000-0000-0000-000000000004');
 
 -- 5. Create Amenities
 INSERT INTO amenities (id, society_id, name, description, capacity, open_time, close_time) VALUES
-('m0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'Swimming Pool', 'Main clubhouse pool', 20, '06:00:00', '22:00:00'),
-('m0000000-0000-0000-0000-000000000002', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'Tennis Court', 'Court 1', 4, '06:00:00', '21:00:00');
+('d0000000-0000-0000-0000-000000000001', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'Swimming Pool', 'Main clubhouse pool', 20, '06:00:00', '22:00:00'),
+('d0000000-0000-0000-0000-000000000002', 'b861cdb6-681a-45c1-90a6-805f8892f3cb', 'Tennis Court', 'Court 1', 4, '06:00:00', '21:00:00');
 
 -- 6. Create Notices
 INSERT INTO notices (society_id, title, body, pinned, created_by) VALUES
@@ -38,7 +38,7 @@ INSERT INTO notices (society_id, title, body, pinned, created_by) VALUES
 
 -- 7. Dummy Visitor and Request (Delivery for Rahul)
 INSERT INTO visitors (id, name, category, phone) VALUES 
-('v0000000-0000-0000-0000-000000000001', 'Amazon Delivery', 'delivery', '+915555555555');
+('e0000000-0000-0000-0000-000000000001', 'Amazon Delivery', 'delivery', '+915555555555');
 
 INSERT INTO visitor_requests (visitor_id, flat_id, created_by, status) VALUES
-('v0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000002', 'g0000000-0000-0000-0000-000000000001', 'pending');
+('e0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'pending');

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, FlatList, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Building2, MessageSquareWarning, Megaphone, Send, ShieldAlert, CheckCircle, PieChart, Dumbbell, CalendarPlus, X, Clock, Users, Shield, ShieldCheck } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuth } from '../../components/AuthProvider';
@@ -85,6 +86,7 @@ export default function CommunityScreen() {
 
   const handleToggleTrust = async (staffId: string, currentlyTrusted: boolean) => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const { data: profile } = await supabase.from('profiles').select('flat_id').eq('id', session?.user.id).single();
       
       if (currentlyTrusted) {
@@ -107,6 +109,7 @@ export default function CommunityScreen() {
     if (!complaintTitle || !complaintDescription) return Alert.alert('Error', 'Title and description required');
     setSubmitting(true);
     try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const { data: profile } = await supabase.from('profiles').select('society_id').eq('id', session?.user.id).single();
       const { error } = await supabase.from('complaints').insert({
         society_id: profile?.society_id, resident_id: session?.user.id, title: complaintTitle, description: complaintDescription, category: 'general'
@@ -124,6 +127,7 @@ export default function CommunityScreen() {
 
   const handleVote = async (pollId: string, option: string, currentResults: any) => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const updatedPolls = polls.map(p => {
         if (p.id === pollId) {
           const newResults = { ...p.results, [option]: (p.results[option] || 0) + 1 };
@@ -149,6 +153,7 @@ export default function CommunityScreen() {
   const handleBookAmenity = async () => {
     setSubmitting(true);
     try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const { data: profile } = await supabase.from('profiles').select('flat_id').eq('id', session?.user.id).single();
       
       const dateObj = new Date();

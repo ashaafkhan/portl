@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Check, X } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuth } from '../../components/AuthProvider';
@@ -54,6 +55,12 @@ export default function ResidentIndex() {
 
   const handleUpdateStatus = async (requestId: string, newStatus: 'approved' | 'rejected') => {
     try {
+      if (newStatus === 'approved') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+
       const { error } = await supabase
         .from('visitor_requests')
         .update({ status: newStatus, decided_by: session?.user.id, decided_at: new Date().toISOString() })

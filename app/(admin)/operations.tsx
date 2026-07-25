@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Briefcase, UserPlus, ShieldAlert, CheckCircle, ClipboardList, X, Users, BadgeCheck } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useAuth } from '../../components/AuthProvider';
@@ -75,6 +76,7 @@ export default function OperationsScreen() {
         verified: true 
       });
       if (error) throw error;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Success', 'Service staff added to directory!');
       setStaffName(''); setStaffPhone('+91');
       fetchServiceStaff();
@@ -87,6 +89,7 @@ export default function OperationsScreen() {
 
   const handleVerifyStaff = async (staffId: string, currentStatus: boolean) => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const { error } = await supabase.from('staff_directory').update({ verified: !currentStatus }).eq('id', staffId);
       if (error) throw error;
       setServiceStaffList(serviceStaffList.map(s => s.id === staffId ? { ...s, verified: !currentStatus } : s));

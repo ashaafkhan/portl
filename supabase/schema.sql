@@ -206,64 +206,64 @@ ALTER TABLE amenity_bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE staff_directory ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to get current user's profile
-CREATE OR REPLACE FUNCTION auth.user_profile() RETURNS profiles AS $$
+CREATE OR REPLACE FUNCTION public.user_profile() RETURNS profiles AS $$
   SELECT * FROM profiles WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE sql STABLE;
 
 -- Societies: Everyone can read their own society
 CREATE POLICY "Users can view their society" ON societies FOR SELECT
-  USING (id = (auth.user_profile()).society_id);
+  USING (id = (public.user_profile()).society_id);
 
 -- Towers & Flats: Everyone in society can view
 CREATE POLICY "Users can view towers in their society" ON towers FOR SELECT
-  USING (society_id = (auth.user_profile()).society_id);
+  USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Users can view flats in their society" ON flats FOR SELECT
-  USING (tower_id IN (SELECT id FROM towers WHERE society_id = (auth.user_profile()).society_id));
+  USING (tower_id IN (SELECT id FROM towers WHERE society_id = (public.user_profile()).society_id));
 
 -- Profiles: Users can view profiles in their society
 CREATE POLICY "Users can view profiles in their society" ON profiles FOR SELECT
-  USING (society_id = (auth.user_profile()).society_id);
+  USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE
   USING (id = auth.uid());
 
 -- Visitor Requests
 CREATE POLICY "Guards and Admins can view all requests in society" ON visitor_requests FOR SELECT
-  USING ((auth.user_profile()).role IN ('guard', 'admin'));
+  USING ((public.user_profile()).role IN ('guard', 'admin'));
 CREATE POLICY "Residents can view requests for their flat" ON visitor_requests FOR SELECT
-  USING (flat_id = (auth.user_profile()).flat_id);
+  USING (flat_id = (public.user_profile()).flat_id);
 CREATE POLICY "Guards can create visitor requests" ON visitor_requests FOR INSERT
-  WITH CHECK ((auth.user_profile()).role = 'guard');
+  WITH CHECK ((public.user_profile()).role = 'guard');
 CREATE POLICY "Residents can update requests for their flat (approve/reject)" ON visitor_requests FOR UPDATE
-  USING (flat_id = (auth.user_profile()).flat_id);
+  USING (flat_id = (public.user_profile()).flat_id);
 
 -- Guest Preapprovals
 CREATE POLICY "Guards and Admins can view all preapprovals" ON guest_preapprovals FOR SELECT
-  USING ((auth.user_profile()).role IN ('guard', 'admin'));
+  USING ((public.user_profile()).role IN ('guard', 'admin'));
 CREATE POLICY "Residents can view and create preapprovals for their flat" ON guest_preapprovals FOR ALL
-  USING (flat_id = (auth.user_profile()).flat_id);
+  USING (flat_id = (public.user_profile()).flat_id);
 
 -- Entry/Exit Logs
 CREATE POLICY "Guards and Admins can manage all logs" ON entry_exit_logs FOR ALL
-  USING ((auth.user_profile()).role IN ('guard', 'admin'));
+  USING ((public.user_profile()).role IN ('guard', 'admin'));
 -- Residents can view logs linked to their flat's requests or preapprovals (simplified here for brevity, typically requires join)
 
 -- Complaints
 CREATE POLICY "Admins can view and manage all complaints" ON complaints FOR ALL
-  USING ((auth.user_profile()).role = 'admin');
+  USING ((public.user_profile()).role = 'admin');
 CREATE POLICY "Residents can view and manage their own complaints" ON complaints FOR ALL
   USING (resident_id = auth.uid());
 
 -- Notices
 CREATE POLICY "Everyone can view notices" ON notices FOR SELECT
-  USING (society_id = (auth.user_profile()).society_id);
+  USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Admins can manage notices" ON notices FOR ALL
-  USING ((auth.user_profile()).role = 'admin');
+  USING ((public.user_profile()).role = 'admin');
 
 -- Polls
 CREATE POLICY "Everyone can view polls" ON polls FOR SELECT
-  USING (society_id = (auth.user_profile()).society_id);
+  USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Admins can manage polls" ON polls FOR ALL
-  USING ((auth.user_profile()).role = 'admin');
+  USING ((public.user_profile()).role = 'admin');
 
 CREATE POLICY "Everyone can view poll options" ON poll_options FOR SELECT
   USING (true);
@@ -274,9 +274,9 @@ CREATE POLICY "Residents can vote" ON poll_votes FOR INSERT
 
 -- Amenities & Bookings
 CREATE POLICY "Everyone can view amenities" ON amenities FOR SELECT
-  USING (society_id = (auth.user_profile()).society_id);
+  USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Admins can manage amenities" ON amenities FOR ALL
-  USING ((auth.user_profile()).role = 'admin');
+  USING ((public.user_profile()).role = 'admin');
 
 CREATE POLICY "Everyone can view bookings" ON amenity_bookings FOR SELECT
   USING (true);
@@ -285,9 +285,9 @@ CREATE POLICY "Residents can manage their own bookings" ON amenity_bookings FOR 
 
 -- Staff Directory
 CREATE POLICY "Everyone can view staff directory" ON staff_directory FOR SELECT
-  USING (society_id = (auth.user_profile()).society_id);
+  USING (society_id = (public.user_profile()).society_id);
 CREATE POLICY "Admins can manage staff directory" ON staff_directory FOR ALL
-  USING ((auth.user_profile()).role = 'admin');
+  USING ((public.user_profile()).role = 'admin');
 
 
 -- =================================================================================
